@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Print Helper Settings</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    input, textarea { width: 100%; margin: 5px 0; }
+    button { margin-top: 10px; }
+    .domain-entry { margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Configure Selectors for Each Domain</h2>
+  <label for="domain">Domain (e.g., united.com):</label>
+  <input type="text" id="domain" placeholder="Enter domain" />
+  
+  <label for="selectors">Selectors to Hide (one per line):</label>
+  <textarea id="selectors" rows="4" placeholder=".header\n.footer\n.ad-banner"></textarea>
+  
+  <button id="saveBtn">Save Settings</button>
+  <button id="updateBtn" style="display: none;">Update Settings</button>
+  
+  <hr>
+  <h3>Current Settings</h3>
+  <div id="currentSettings"></div>
+  
+  <script src="settings.js"></script>
+</body>
+</html>
