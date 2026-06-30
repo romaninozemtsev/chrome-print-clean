@@ -1,0 +1,19 @@
+{
+  "name": "chrome-print-clean",
+  "version": "1.0.0",
+  "description": "Chrome extension to print pages with unnecessary elements removed.",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev": "node scripts/dev-chrome.mjs",
+    "zip": "node scripts/build-zip.mjs"
+  },
+  "devDependencies": {
+    "@puppeteer/browsers": "^3.0.5",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0"
+  }
+}

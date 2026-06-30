@@ -1,30 +1,49 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Print Helper Settings</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    input, textarea { width: 100%; margin: 5px 0; }
-    button { margin-top: 10px; }
-    .domain-entry { margin-bottom: 10px; }
-  </style>
-</head>
-<body>
-  <h2>Configure Selectors for Each Domain</h2>
-  <label for="domain">Domain (e.g., united.com):</label>
-  <input type="text" id="domain" placeholder="Enter domain" />
-  
-  <label for="selectors">Selectors to Hide (one per line):</label>
-  <textarea id="selectors" rows="4" placeholder=".header\n.footer\n.ad-banner"></textarea>
-  
-  <button id="saveBtn">Save Settings</button>
-  <button id="updateBtn" style="display: none;">Update Settings</button>
-  
-  <hr>
-  <h3>Current Settings</h3>
-  <div id="currentSettings"></div>
-  
-  <script src="settings.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Print Clean — Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="options">
+    <header class="options__head">
+      <h1>Print Clean</h1>
+      <p class="options__sub">
+        Define which elements to hide when printing each site.
+      </p>
+    </header>
+
+    <div class="field">
+      <label for="domain">Domain</label>
+      <input type="text" id="domain" placeholder="united.com" />
+    </div>
+
+    <div class="field">
+      <label for="selectors">Selectors to hide (one per line)</label>
+      <textarea
+        id="selectors"
+        rows="4"
+        placeholder=".header&#10;.promo-banner&#10;[class*='signup']"
+      ></textarea>
+    </div>
+
+    <p class="error" id="error" role="alert" aria-live="assertive">
+      <span aria-hidden="true">⚠</span><span id="errorText"></span>
+    </p>
+
+    <div class="form-actions">
+      <button class="btn primary" id="saveBtn">Save</button>
+      <button class="btn primary" id="updateBtn" style="display: none">
+        Update
+      </button>
+      <button class="btn" id="cancelBtn" style="display: none">Cancel</button>
+    </div>
+
+    <section class="rules">
+      <h2>Configured sites</h2>
+      <div class="rules__list" id="currentSettings"></div>
+    </section>
+
+    <script src="settings.js"></script>
+  </body>
 </html>

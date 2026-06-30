@@ -1,138 +1,181 @@
-document.getElementById('saveBtn').addEventListener('click', saveSettings);
-document.getElementById('updateBtn').addEventListener('click', updateSettings);
+const domainInput = document.getElementById('domain');
+const selectorsInput = document.getElementById('selectors');
+const errorEl = document.getElementById('error');
+const errorTextEl = document.getElementById('errorText');
+const saveBtn = document.getElementById('saveBtn');
+const updateBtn = document.getElementById('updateBtn');
+const cancelBtn = document.getElementById('cancelBtn');
 
-function saveSettings() {
-  let domain = document.getElementById('domain').value.trim();
-  const selectors = document.getElementById('selectors').value.trim();
+saveBtn.addEventListener('click', persist);
+updateBtn.addEventListener('click', persist);
+cancelBtn.addEventListener('click', exitEditMode);
 
-  if (domain && selectors) {
-    // Normalize the domain to remove 'www.' if it exists
-    domain = domain.replace(/^www\./, '');
+// Basic domain validation: labels of letters/digits/hyphens separated by dots,
+// e.g. united.com or mail.google.com. Rejects spaces, schemes, and paths.
+const DOMAIN_RE =
+  /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))+$/i;
 
-    // Get existing settings
-    chrome.storage.sync.get('siteSelectors', (data) => {
-      const siteSelectors = data.siteSelectors || {};
-      
-      // Save the new selectors for the domain
-      siteSelectors[domain] = selectors.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-      
-      chrome.storage.sync.set({ siteSelectors }, () => {
-        alert('Settings saved!');
-        loadCurrentSettings();
-        clearInputs();
-      });
-    });
-  } else {
-    alert('Please enter both domain and selectors.');
+function normalizeDomain(value) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/^www\./, '');
+}
+
+function showError(message) {
+  errorTextEl.textContent = message || '';
+  errorEl.classList.toggle('is-visible', Boolean(message));
+}
+
+function persist() {
+  const domain = normalizeDomain(domainInput.value);
+  const rawSelectors = selectorsInput.value.trim();
+
+  if (!domain || !rawSelectors) {
+    showError('Enter both a domain and at least one selector.');
+    return;
   }
-}
+  if (!DOMAIN_RE.test(domain)) {
+    showError('Enter a valid domain such as “united.com”.');
+    return;
+  }
 
-function loadCurrentSettings() {
-  chrome.storage.sync.get('siteSelectors', (data) => {
-    const siteSelectors = data.siteSelectors || {};
-    const settingsDiv = document.getElementById('currentSettings');
-    settingsDiv.innerHTML = '';
-
-    // Load default settings from JSON file to determine if reset is needed
-    fetch(chrome.runtime.getURL('defaultSettings.json'))
-      .then(response => response.json())
-      .then(defaultSettings => {
-        for (const domain in siteSelectors) {
-          const selectors = siteSelectors[domain].join('<br>');
-          const domainEntry = document.createElement('div');
-          domainEntry.classList.add('domain-entry');
-          domainEntry.innerHTML = `
-            <strong>${domain}:</strong><br>${selectors}<br>
-            <button class="editBtn" data-domain="${domain}">Edit</button>
-            ${
-              defaultSettings[domain]
-                ? `<button class="resetBtn" data-domain="${domain}">Reset to Default</button>`
-                : ''
-            }
-          `;
-          settingsDiv.appendChild(domainEntry);
-        }
-
-        // Attach event listeners to the new edit and reset buttons
-        document.querySelectorAll('.editBtn').forEach(button => {
-          button.addEventListener('click', () => editSettings(button.getAttribute('data-domain')));
-        });
-
-        document.querySelectorAll('.resetBtn').forEach(button => {
-          button.addEventListener('click', () => resetToDefault(button.getAttribute('data-domain')));
-        });
-      });
-});
-}
-
-function editSettings(domain) {
-  // Normalize the domain to remove 'www.' if it exists
-  const normalizedDomain = domain.replace(/^www\./, '');
+  const selectors = rawSelectors
+    .split('\n')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   chrome.storage.sync.get('siteSelectors', (data) => {
     const siteSelectors = data.siteSelectors || {};
-    const selectors = siteSelectors[normalizedDomain] || [];
-
-    // Populate the input fields with the current settings
-    document.getElementById('domain').value = normalizedDomain;
-    document.getElementById('selectors').value = selectors.join('\n');
-
-    // Show the Update button and hide the Save button
-    document.getElementById('saveBtn').style.display = 'none';
-    document.getElementById('updateBtn').style.display = 'inline-block';
+    siteSelectors[domain] = selectors;
+    chrome.storage.sync.set({ siteSelectors }, () => {
+      loadCurrentSettings();
+      exitEditMode();
+    });
   });
 }
 
-function updateSettings() {
-  const domain = document.getElementById('domain').value.trim().replace(/^www\./, '');
-  const selectors = document.getElementById('selectors').value.trim();
+function loadCurrentSettings() {
+  Promise.all([
+    new Promise((resolve) =>
+      chrome.storage.sync.get('siteSelectors', (data) =>
+        resolve(data.siteSelectors || {})
+      )
+    ),
+    fetch(chrome.runtime.getURL('defaultSettings.json'))
+      .then((r) => r.json())
+      .catch(() => ({})),
+  ]).then(([siteSelectors, defaultSettings]) => {
+    const container = document.getElementById('currentSettings');
+    container.textContent = '';
 
-  if (domain && selectors) {
-    // Get existing settings
-    chrome.storage.sync.get('siteSelectors', (data) => {
-      const siteSelectors = data.siteSelectors || {};
-      
-      // Update the selectors for the domain
-      siteSelectors[domain] = selectors.split('\n').map(s => s.trim()).filter(s => s.length > 0);
-      
-      chrome.storage.sync.set({ siteSelectors }, () => {
-        alert('Settings updated!');
-        loadCurrentSettings();
-        clearInputs();
-        
-        // Show the Save button and hide the Update button
-        document.getElementById('saveBtn').style.display = 'inline-block';
-        document.getElementById('updateBtn').style.display = 'none';
-      });
+    const domains = Object.keys(siteSelectors).sort();
+    if (domains.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'No sites configured yet. Add one above to begin.';
+      container.appendChild(empty);
+      return;
+    }
+
+    domains.forEach((domain) => {
+      container.appendChild(
+        renderRule(domain, siteSelectors[domain], defaultSettings)
+      );
     });
-  } else {
-    alert('Please enter both domain and selectors.');
+  });
+}
+
+function renderRule(domain, selectors, defaultSettings) {
+  const rule = document.createElement('div');
+  rule.className = 'rule';
+
+  const title = document.createElement('div');
+  title.className = 'rule__domain';
+  title.textContent = domain;
+  rule.appendChild(title);
+
+  const list = document.createElement('ul');
+  list.className = 'rule__selectors';
+  selectors.forEach((selector) => {
+    const li = document.createElement('li');
+    li.textContent = selector;
+    list.appendChild(li);
+  });
+  rule.appendChild(list);
+
+  const actions = document.createElement('div');
+  actions.className = 'rule__actions';
+
+  actions.appendChild(
+    makeButton('Edit', 'btn small', () => editSettings(domain))
+  );
+  actions.appendChild(
+    makeButton('Delete', 'btn small danger', () => deleteSettings(domain))
+  );
+  if (defaultSettings[domain]) {
+    actions.appendChild(
+      makeButton('Reset to default', 'btn small', () =>
+        resetToDefault(domain, defaultSettings)
+      )
+    );
   }
+  rule.appendChild(actions);
+
+  return rule;
 }
 
-function resetToDefault(domain) {
-  fetch(chrome.runtime.getURL('defaultSettings.json'))
-    .then(response => response.json())
-    .then(defaultSettings => {
-      if (defaultSettings[domain]) {
-        chrome.storage.sync.get('siteSelectors', (data) => {
-          const siteSelectors = data.siteSelectors || {};
-
-          // Reset to default settings
-          siteSelectors[domain] = defaultSettings[domain];
-          chrome.storage.sync.set({ siteSelectors }, () => {
-            alert(`Settings for ${domain} have been reset to default.`);
-            loadCurrentSettings();
-          });
-        });
-      }
-    });
+function makeButton(label, className, onClick) {
+  const btn = document.createElement('button');
+  btn.className = className;
+  btn.textContent = label;
+  btn.addEventListener('click', onClick);
+  return btn;
 }
 
-function clearInputs() {
-  document.getElementById('domain').value = '';
-  document.getElementById('selectors').value = '';
+function editSettings(domain) {
+  chrome.storage.sync.get('siteSelectors', (data) => {
+    const siteSelectors = data.siteSelectors || {};
+    const selectors = siteSelectors[domain] || [];
+    domainInput.value = domain;
+    selectorsInput.value = selectors.join('\n');
+    showError('');
+    enterEditMode();
+    domainInput.focus();
+  });
 }
 
-// Load current settings on page load
+function deleteSettings(domain) {
+  if (!confirm(`Delete settings for ${domain}?`)) return;
+  chrome.storage.sync.get('siteSelectors', (data) => {
+    const siteSelectors = data.siteSelectors || {};
+    delete siteSelectors[domain];
+    chrome.storage.sync.set({ siteSelectors }, loadCurrentSettings);
+  });
+}
+
+function resetToDefault(domain, defaultSettings) {
+  if (!defaultSettings[domain]) return;
+  chrome.storage.sync.get('siteSelectors', (data) => {
+    const siteSelectors = data.siteSelectors || {};
+    siteSelectors[domain] = defaultSettings[domain];
+    chrome.storage.sync.set({ siteSelectors }, loadCurrentSettings);
+  });
+}
+
+function enterEditMode() {
+  saveBtn.style.display = 'none';
+  updateBtn.style.display = 'inline-flex';
+  cancelBtn.style.display = 'inline-flex';
+}
+
+function exitEditMode() {
+  domainInput.value = '';
+  selectorsInput.value = '';
+  showError('');
+  saveBtn.style.display = 'inline-flex';
+  updateBtn.style.display = 'none';
+  cancelBtn.style.display = 'none';
+}
+
 loadCurrentSettings();

@@ -1,19 +1,28 @@
 {
-    "manifest_version": 3,
-    "name": "Print Helper",
-    "version": "1.0",
-    "description": "A simple extension to print pages with unnecessary elements removed.",
-    "permissions": ["activeTab", "scripting", "storage"],
-    "action": {
-      "default_popup": "popup.html",
-      "default_icon": "icon48.png"
-    },
-    "options_page": "settings.html",
-    "background": {
-        "service_worker": "background.js"
-    },
-    "icons": {
-        "48": "icon48.png",
-        "128": "icon128.png"
+  "manifest_version": 3,
+  "name": "Print Clean",
+  "version": "1.0.0",
+  "description": "Print pages from supported sites (Gmail, united.com, ...) with unnecessary elements removed.",
+  "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
+  "action": {
+    "default_title": "Print Clean — preview & print",
+    "default_icon": "icon48.png"
+  },
+  "options_page": "settings.html",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "clean-print": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+P",
+        "mac": "Command+Shift+P"
+      },
+      "description": "Open Print Clean preview on the current page"
     }
+  },
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
   }
+}
