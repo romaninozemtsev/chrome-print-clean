@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Print Clean — print web pages without the clutter</title>
+    <meta
+      name="description"
+      content="Print Clean is a Chrome extension that lets you print clean pages from cluttered websites. Click to remove anything, then print exactly what you see."
+    />
+    <link rel="icon" href="icon128.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <img src="icon128.png" alt="Print Clean logo" />
+        <span>Print Clean</span>
+      </a>
+      <nav class="nav">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <span class="pill">Chrome extension</span>
+        <h1>Print web pages without the clutter.</h1>
+        <p class="lead">
+          Open an interactive print preview right on the page. Click anything to
+          remove it, keep only what matters, then print exactly what you see.
+          No more guess-and-reprint cycles, and no CSS knowledge required.
+        </p>
+        <a class="cta" href="#" id="store-link">Add to Chrome — it's free</a>
+        <a class="cta secondary" href="#how">See how it works</a>
+      </section>
+
+      <section class="section" id="features">
+        <h2>Why Print Clean</h2>
+        <div class="grid">
+          <div class="card">
+            <h3>What you see is what prints</h3>
+            <p>
+              No surprise print stylesheets. Print Clean snapshots the curated,
+              on-screen content so your printout matches the preview.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Click to remove</h3>
+            <p>
+              Hover highlights the target; click to drop it from the printout.
+              Or "keep only" one section and everything else disappears.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Remembers your choices</h3>
+            <p>
+              Your rules are saved per website, so the next visit (and the
+              quick right-click print) starts clean automatically.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Built-in site handlers</h3>
+            <p>
+              Sites like Gmail get special handling to keep just the email body,
+              so common pages print perfectly out of the box.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Keyboard shortcut</h3>
+            <p>
+              Press <strong>⌘/Ctrl + Shift + P</strong> to open the preview on
+              any page, or right-click to print instantly.
+            </p>
+          </div>
+          <div class="card">
+            <h3>Private by design</h3>
+            <p>
+              Everything runs in your browser. No accounts, no tracking, and
+              none of your page content ever leaves your device.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="how">
+        <h2>How it works</h2>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <p>
+              <strong>Open the preview</strong>
+              <span class="muted"
+                >Click the toolbar icon (or press ⌘/Ctrl + Shift + P) to overlay
+                an interactive preview on the live page.</span
+              >
+            </p>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <p>
+              <strong>Curate the page</strong>
+              <span class="muted"
+                >Click elements to remove them, or "keep only" a single section.
+                Undo and reset are always one click away.</span
+              >
+            </p>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <p>
+              <strong>Print clean</strong>
+              <span class="muted"
+                >Hit Print and get a tidy printout that matches what you saw,
+                with your choices remembered for next time.</span
+              >
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>© <span id="year"></span> Monkey Skates LLC</div>
+        <div>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Use</a>
+          <a href="mailto:support@monkeyskates.dev">Contact</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>
