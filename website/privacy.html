@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — Print Clean</title>
+    <meta
+      name="description"
+      content="Privacy Policy for the Print Clean Chrome extension."
+    />
+    <link rel="icon" href="icon128.png" type="image/png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="/">
+        <img src="icon128.png" alt="Print Clean logo" />
+        <span>Print Clean</span>
+      </a>
+      <nav class="nav">
+        <a href="/">Home</a>
+        <a href="terms.html">Terms</a>
+      </nav>
+    </header>
+
+    <main class="wrap legal">
+      <h1>Privacy Policy</h1>
+      <p class="updated">Last updated: June 30, 2026</p>
+
+      <p>
+        This Privacy Policy explains how the <strong>Print Clean</strong> browser
+        extension ("Print Clean", "we", "us", or "our"), published by Monkey
+        Skates LLC, handles your information. The short version: Print Clean does
+        not collect, transmit, or sell any personal data.
+      </p>
+
+      <h2>1. Information we collect</h2>
+      <p>
+        Print Clean does <strong>not</strong> collect, store, or transmit any
+        personally identifiable information. We do not run analytics, we do not
+        use tracking cookies, and we do not maintain any servers that receive
+        your data.
+      </p>
+
+      <h2>2. Data the extension stores locally</h2>
+      <p>
+        To do its job, Print Clean saves your preferences: specifically the
+        per-website rules describing which page elements to remove or keep when
+        printing. This data is stored using Chrome's built-in
+        <code>chrome.storage.sync</code> API. It stays within your own browser
+        and, if you are signed in to Chrome with sync enabled, is synchronized
+        across your own devices by Google. We never receive a copy of it.
+      </p>
+
+      <h2>3. Page content</h2>
+      <p>
+        Print Clean reads and modifies the content of the page you are viewing
+        only when you actively trigger it (by clicking the toolbar icon, using
+        the keyboard shortcut, or choosing the right-click menu item). This
+        processing happens entirely on your device. Page content is never sent
+        to us or to any third party.
+      </p>
+
+      <h2>4. Permissions</h2>
+      <p>
+        The extension requests only the permissions it needs to function:
+      </p>
+      <ul>
+        <li>
+          <strong>activeTab / scripting</strong>: to read and clean the current
+          page when you invoke Print Clean.
+        </li>
+        <li>
+          <strong>storage</strong>: to save your per-website print rules.
+        </li>
+        <li>
+          <strong>contextMenus</strong>: to add the "Clean up and print"
+          right-click option.
+        </li>
+      </ul>
+
+      <h2>5. Third-party services</h2>
+      <p>
+        Print Clean does not integrate with any third-party advertising,
+        analytics, or data-broker services.
+      </p>
+
+      <h2>6. Children's privacy</h2>
+      <p>
+        Print Clean is a general-purpose utility and does not knowingly collect
+        any information from anyone, including children under 13.
+      </p>
+
+      <h2>7. Changes to this policy</h2>
+      <p>
+        We may update this Privacy Policy from time to time. Any changes will be
+        posted on this page with an updated "Last updated" date.
+      </p>
+
+      <h2>8. Contact</h2>
+      <p>
+        If you have questions about this Privacy Policy, contact us at
+        <a href="mailto:support@monkeyskates.dev">support@monkeyskates.dev</a>.
+      </p>
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap">
+        <div>© <span id="year"></span> Monkey Skates LLC</div>
+        <div>
+          <a href="privacy.html">Privacy Policy</a>
+          <a href="terms.html">Terms of Use</a>
+          <a href="mailto:support@monkeyskates.dev">Contact</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
+  </body>
+</html>

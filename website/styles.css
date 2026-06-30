@@ -1,0 +1,273 @@
+:root {
+  --ink: #1d1d1f;
+  --muted: #6b6b70;
+  --bg: #ffffff;
+  --accent: #2563eb;
+  --accent-soft: #eaf0ff;
+  --border: #e6e6ea;
+  --radius: 14px;
+  --maxw: 880px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Header */
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 20px;
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.brand img {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+
+.brand span {
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.nav a {
+  color: var(--muted);
+  text-decoration: none;
+  margin-left: 18px;
+  font-size: 0.95rem;
+}
+
+.nav a:hover {
+  color: var(--ink);
+}
+
+/* Hero */
+.hero {
+  padding: 56px 0 32px;
+}
+
+.pill {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+
+.hero h1 {
+  font-size: 2.6rem;
+  line-height: 1.1;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+
+.hero p.lead {
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 620px;
+  margin: 0 0 28px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink);
+  color: #fff;
+  text-decoration: none;
+  padding: 14px 22px;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cta:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+.cta.secondary {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  margin-left: 10px;
+}
+
+.cta.secondary:hover {
+  background: #fafafa;
+}
+
+/* Features */
+.section {
+  padding: 36px 0;
+}
+
+.section h2 {
+  font-size: 1.6rem;
+  letter-spacing: -0.01em;
+  margin: 0 0 24px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px;
+  background: #fff;
+}
+
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+}
+
+.card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.98rem;
+}
+
+.steps {
+  counter-reset: step;
+  display: grid;
+  gap: 14px;
+}
+
+.step {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.step .num {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.step p {
+  margin: 2px 0 0;
+}
+
+.step strong {
+  display: block;
+}
+
+.step .muted {
+  color: var(--muted);
+  font-size: 0.96rem;
+}
+
+/* Footer */
+.site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 40px;
+  padding: 28px 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.site-footer .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.site-footer a {
+  color: var(--muted);
+  text-decoration: none;
+  margin-right: 16px;
+}
+
+.site-footer a:hover {
+  color: var(--ink);
+}
+
+/* Legal pages */
+.legal {
+  padding: 40px 0 20px;
+}
+
+.legal h1 {
+  font-size: 2rem;
+  margin: 0 0 6px;
+}
+
+.legal .updated {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 28px;
+}
+
+.legal h2 {
+  font-size: 1.25rem;
+  margin: 30px 0 10px;
+}
+
+.legal p,
+.legal li {
+  color: #333;
+}
+
+.legal a {
+  color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .hero h1 {
+    font-size: 2rem;
+  }
+  .cta.secondary {
+    margin-left: 0;
+    margin-top: 10px;
+  }
+}
