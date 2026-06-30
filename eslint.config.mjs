@@ -54,6 +54,28 @@ export default [
     },
   },
   {
+    // Content scripts injected alongside shared.js (background.js executeScript
+    // injects ['shared.js', <script>]); shared.js attaches helpers to globalThis.
+    files: ['printClean.js', 'printPreview.js'],
+    languageOptions: {
+      globals: {
+        ...browserGlobals,
+        normalizeHost: 'readonly',
+        isValidDomain: 'readonly',
+        mergeSettings: 'readonly',
+        buildHideCss: 'readonly',
+        buildIsolateCss: 'readonly',
+        buildHighlightCss: 'readonly',
+        printableWidthPx: 'readonly',
+        pageBoxCss: 'readonly',
+        mmToPx: 'readonly',
+        HIGHLIGHT_COLOR: 'readonly',
+        PAGE_WIDTH_MM: 'readonly',
+        MARGIN_MM: 'readonly',
+      },
+    },
+  },
+  {
     // Build scripts (ESM, Node).
     files: ['**/*.mjs'],
     languageOptions: {

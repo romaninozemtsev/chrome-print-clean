@@ -11,19 +11,31 @@ Clicking the toolbar icon injects an on-page preview overlay that:
 
 1. **Applies the site's saved rules to the live page**, so what you see is what
    prints.
-2. **Lets you curate the page in two ways** (hover highlights the target):
-   - **Remove** — click anything to drop it from the printout.
+2. **Lets you curate the page** (hover highlights the target):
+   - **Remove** — click anything to drop it from the printout, or drag a box to
+     remove several elements at once.
    - **Keep only** — click one section to keep _just_ that (and what's inside
      it); everything else is dropped. Ideal for "print only the email body."
+   - **Highlight** — click anything to mark it with a highlighter colour that
+     survives printing.
+   - **Edit** — click any text to fix a typo or trim a line before printing
+     (session-only, never saved).
 
-   Each click becomes a durable CSS selector, and you can restore anything from
-   the toolbar.
-3. **Remembers your choices** per domain via `chrome.storage.sync`, so the next
-   visit — and the quick context-menu print — start clean.
+   Hide/keep/highlight clicks each become a durable CSS selector, and you can
+   restore anything from the toolbar.
 
-A small toolbar (Remove / Keep only · Undo · Reset · Print · Done) floats at the
-bottom; it lives in its own Shadow DOM so the host page's styles can't break it,
-and it never appears in the printout.
+3. **Adjusts the page layout** from the **Layout** popover: scale text up or
+   down, hide all images, and pick the paper size (A4 / Letter) and margins.
+4. **Prints or saves as PDF** — hit **Print** for the dialog, or **Save PDF**
+   (choose "Save as PDF" as the destination; the page title becomes the
+   filename).
+5. **Remembers your choices** per domain via `chrome.storage.sync` — including
+   highlights and layout options — so the next visit, and the quick
+   context-menu print, start exactly how you left them.
+
+A small toolbar (Remove / Keep only / Highlight / Edit · Layout · Undo · Reset ·
+Save PDF · Print · Done) floats at the bottom; it lives in its own Shadow DOM so
+the host page's styles can't break it, and it never appears in the printout.
 
 ### What you see is what prints
 
@@ -35,7 +47,8 @@ isolated document and prints _that_ — so the printout matches the preview.
 
 For sites with bespoke needs there are also **special handlers** (e.g. Gmail at
 `mail.google.com`, which keeps just the email body) used by the instant
-context-menu print.
+context-menu print. If you've saved your own rules for that site, they take
+precedence over the built-in handler.
 
 ## Triggering Print Clean
 

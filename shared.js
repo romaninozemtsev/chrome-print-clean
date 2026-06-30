@@ -42,12 +42,63 @@
     );
   }
 
+  // Default highlight colour (amber) used by "Highlight" mode.
+  const HIGHLIGHT_COLOR = '#fff176';
+
+  // Build a CSS string that highlights each selector. Forces colour to survive
+  // the print pipeline (browsers strip backgrounds by default when printing).
+  function buildHighlightCss(selectors, color) {
+    const c = color || HIGHLIGHT_COLOR;
+    return (selectors || [])
+      .filter(Boolean)
+      .map(
+        (selector) =>
+          `${selector} { background-color: ${c} !important;` +
+          ` -webkit-print-color-adjust: exact !important;` +
+          ` print-color-adjust: exact !important; }`
+      )
+      .join(' ');
+  }
+
+  // ---- page geometry (paper size + margins) ------------------------------
+  const PAGE_WIDTH_MM = { A4: 210, Letter: 215.9 };
+  const MARGIN_MM = { normal: 14, narrow: 6, none: 0 };
+
+  function mmToPx(mm) {
+    return (mm * 96) / 25.4;
+  }
+
+  // Printable content width in CSS px for a given paper size + margin preset.
+  // Used to scale the frozen snapshot so it fits the page.
+  function printableWidthPx(pageSize, margins) {
+    const w = PAGE_WIDTH_MM[pageSize] || PAGE_WIDTH_MM.A4;
+    const m =
+      MARGIN_MM[margins] != null ? MARGIN_MM[margins] : MARGIN_MM.normal;
+    return Math.round(mmToPx(w - 2 * m));
+  }
+
+  // CSS @page rule for the chosen paper size + margins.
+  function pageBoxCss(pageSize, margins) {
+    const size =
+      (pageSize || 'A4').toLowerCase() === 'letter' ? 'letter' : 'a4';
+    const m =
+      MARGIN_MM[margins] != null ? MARGIN_MM[margins] : MARGIN_MM.normal;
+    return `@page { size: ${size}; margin: ${m}mm; }`;
+  }
+
   const api = {
     normalizeHost,
     isValidDomain,
     mergeSettings,
     buildHideCss,
     buildIsolateCss,
+    buildHighlightCss,
+    printableWidthPx,
+    pageBoxCss,
+    mmToPx,
+    HIGHLIGHT_COLOR,
+    PAGE_WIDTH_MM,
+    MARGIN_MM,
   };
 
   if (typeof module !== 'undefined' && module.exports) {

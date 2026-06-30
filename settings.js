@@ -58,18 +58,33 @@ function persist() {
 function loadCurrentSettings() {
   Promise.all([
     new Promise((resolve) =>
-      chrome.storage.sync.get('siteSelectors', (data) =>
-        resolve(data.siteSelectors || {})
+      chrome.storage.sync.get(
+        ['siteSelectors', 'siteKeep', 'siteHighlight', 'siteOptions'],
+        (data) =>
+          resolve({
+            hide: data.siteSelectors || {},
+            keep: data.siteKeep || {},
+            highlight: data.siteHighlight || {},
+            options: data.siteOptions || {},
+          })
       )
     ),
     fetch(chrome.runtime.getURL('defaultSettings.json'))
       .then((r) => r.json())
       .catch(() => ({})),
-  ]).then(([siteSelectors, defaultSettings]) => {
+  ]).then(([store, defaultSettings]) => {
     const container = document.getElementById('currentSettings');
     container.textContent = '';
 
-    const domains = Object.keys(siteSelectors).sort();
+    const domains = Array.from(
+      new Set([
+        ...Object.keys(store.hide),
+        ...Object.keys(store.keep),
+        ...Object.keys(store.highlight),
+        ...Object.keys(store.options),
+      ])
+    ).sort();
+
     if (domains.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'empty';
@@ -80,20 +95,46 @@ function loadCurrentSettings() {
 
     domains.forEach((domain) => {
       container.appendChild(
-        renderRule(domain, siteSelectors[domain], defaultSettings)
+        renderRule(
+          domain,
+          {
+            hide: store.hide[domain] || [],
+            keep: store.keep[domain] || [],
+            highlight: store.highlight[domain] || [],
+            options: store.options[domain] || null,
+          },
+          defaultSettings
+        )
       );
     });
   });
 }
 
-function renderRule(domain, selectors, defaultSettings) {
-  const rule = document.createElement('div');
-  rule.className = 'rule';
+function optionsSummary(options) {
+  if (!options) return '';
+  const parts = [];
+  if (options.hideImages) parts.push('Images hidden');
+  if (options.textScale && options.textScale !== 1) {
+    parts.push(`Text ${Math.round(options.textScale * 100)}%`);
+  }
+  if (options.pageSize && options.pageSize !== 'A4') {
+    parts.push(options.pageSize);
+  }
+  if (options.margins && options.margins !== 'normal') {
+    parts.push(`${options.margins} margins`);
+  }
+  return parts.join(' · ');
+}
 
-  const title = document.createElement('div');
-  title.className = 'rule__domain';
-  title.textContent = domain;
-  rule.appendChild(title);
+function renderSelectorGroup(label, selectors) {
+  if (!selectors || !selectors.length) return null;
+  const wrap = document.createElement('div');
+  wrap.className = 'rule__group';
+
+  const heading = document.createElement('div');
+  heading.className = 'rule__group-label';
+  heading.textContent = label;
+  wrap.appendChild(heading);
 
   const list = document.createElement('ul');
   list.className = 'rule__selectors';
@@ -102,13 +143,39 @@ function renderRule(domain, selectors, defaultSettings) {
     li.textContent = selector;
     list.appendChild(li);
   });
-  rule.appendChild(list);
+  wrap.appendChild(list);
+  return wrap;
+}
+
+function renderRule(domain, data, defaultSettings) {
+  const rule = document.createElement('div');
+  rule.className = 'rule';
+
+  const title = document.createElement('div');
+  title.className = 'rule__domain';
+  title.textContent = domain;
+  rule.appendChild(title);
+
+  const summary = optionsSummary(data.options);
+  if (summary) {
+    const meta = document.createElement('div');
+    meta.className = 'rule__meta';
+    meta.textContent = summary;
+    rule.appendChild(meta);
+  }
+
+  const hideGroup = renderSelectorGroup('Hidden', data.hide);
+  if (hideGroup) rule.appendChild(hideGroup);
+  const keepGroup = renderSelectorGroup('Kept only', data.keep);
+  if (keepGroup) rule.appendChild(keepGroup);
+  const highlightGroup = renderSelectorGroup('Highlighted', data.highlight);
+  if (highlightGroup) rule.appendChild(highlightGroup);
 
   const actions = document.createElement('div');
   actions.className = 'rule__actions';
 
   actions.appendChild(
-    makeButton('Edit', 'btn small', () => editSettings(domain))
+    makeButton('Edit hidden', 'btn small', () => editSettings(domain))
   );
   actions.appendChild(
     makeButton('Delete', 'btn small danger', () => deleteSettings(domain))
@@ -146,12 +213,24 @@ function editSettings(domain) {
 }
 
 function deleteSettings(domain) {
-  if (!confirm(`Delete settings for ${domain}?`)) return;
-  chrome.storage.sync.get('siteSelectors', (data) => {
-    const siteSelectors = data.siteSelectors || {};
-    delete siteSelectors[domain];
-    chrome.storage.sync.set({ siteSelectors }, loadCurrentSettings);
-  });
+  if (!confirm(`Delete all saved settings for ${domain}?`)) return;
+  chrome.storage.sync.get(
+    ['siteSelectors', 'siteKeep', 'siteHighlight', 'siteOptions'],
+    (data) => {
+      const siteSelectors = data.siteSelectors || {};
+      const siteKeep = data.siteKeep || {};
+      const siteHighlight = data.siteHighlight || {};
+      const siteOptions = data.siteOptions || {};
+      delete siteSelectors[domain];
+      delete siteKeep[domain];
+      delete siteHighlight[domain];
+      delete siteOptions[domain];
+      chrome.storage.sync.set(
+        { siteSelectors, siteKeep, siteHighlight, siteOptions },
+        loadCurrentSettings
+      );
+    }
+  );
 }
 
 function resetToDefault(domain, defaultSettings) {
