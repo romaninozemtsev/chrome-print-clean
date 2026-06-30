@@ -695,6 +695,13 @@
 
   function printExact() {
     const vw = document.documentElement.clientWidth;
+    // Lock the snapshot to the on-screen width and scale it down to fit a
+    // portrait page, so the layout is frozen exactly as previewed. Changing
+    // the paper orientation then only changes the surrounding whitespace
+    // instead of reflowing the content. 688px ≈ A4 portrait printable width
+    // at 14mm margins (210mm − 28mm); we only ever scale down, never up.
+    const TARGET = 688;
+    const scale = Math.min(1, TARGET / vw);
     const bodyClone = buildSnapshot(document.body);
 
     const frame = document.createElement('iframe');
@@ -715,8 +722,13 @@
     idoc.close();
 
     if (bodyClone) {
-      idoc.body.setAttribute('style', bodyClone.getAttribute('style') || '');
-      while (bodyClone.firstChild) idoc.body.appendChild(bodyClone.firstChild);
+      const stage = idoc.createElement('div');
+      stage.setAttribute(
+        'style',
+        `${bodyClone.getAttribute('style') || ''};width:${vw}px;zoom:${scale};`
+      );
+      while (bodyClone.firstChild) stage.appendChild(bodyClone.firstChild);
+      idoc.body.appendChild(stage);
     }
 
     let printed = false;
