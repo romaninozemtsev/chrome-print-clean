@@ -22,14 +22,20 @@ function initDefaultSettings() {
 function cleanPrintTab(tab) {
   if (!tab || !tab.id) return;
   chrome.scripting
-    .executeScript({ target: { tabId: tab.id }, files: ['printClean.js'] })
+    .executeScript({
+      target: { tabId: tab.id },
+      files: ['shared.js', 'printClean.js'],
+    })
     .catch((error) => console.error('Cannot run on this page:', error));
 }
 
 function previewTab(tab) {
   if (!tab || !tab.id) return;
   chrome.scripting
-    .executeScript({ target: { tabId: tab.id }, files: ['printPreview.js'] })
+    .executeScript({
+      target: { tabId: tab.id },
+      files: ['shared.js', 'printPreview.js'],
+    })
     .catch((error) => console.error('Cannot run on this page:', error));
 }
 

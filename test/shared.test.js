@@ -6,6 +6,9 @@ const {
   mergeSettings,
   buildHideCss,
   buildIsolateCss,
+  buildHighlightCss,
+  printableWidthPx,
+  pageBoxCss,
 } = require('../shared.js');
 
 test('normalizeHost strips www and lowercases', () => {
@@ -66,4 +69,40 @@ test('buildIsolateCss keeps only the given selectors', () => {
   );
   assert.equal(buildIsolateCss([]), '');
   assert.equal(buildIsolateCss(undefined), '');
+});
+
+test('buildHighlightCss emits forced-colour highlight rules', () => {
+  const css = buildHighlightCss(['.a', '#b'], '#fff176');
+  assert.match(css, /\.a \{ background-color: #fff176 !important;/);
+  assert.match(css, /#b \{ background-color: #fff176 !important;/);
+  assert.match(css, /print-color-adjust: exact !important;/);
+  assert.equal(buildHighlightCss([]), '');
+  assert.equal(buildHighlightCss(undefined), '');
+});
+
+test('buildHighlightCss falls back to the default colour', () => {
+  assert.match(buildHighlightCss(['.a']), /background-color: #fff176 !important;/);
+});
+
+test('printableWidthPx shrinks with larger margins', () => {
+  const a4Normal = printableWidthPx('A4', 'normal');
+  const a4None = printableWidthPx('A4', 'none');
+  const letterNormal = printableWidthPx('Letter', 'normal');
+  assert.ok(a4None > a4Normal); // no margins => wider content area
+  assert.ok(letterNormal > a4Normal); // Letter is wider than A4
+  // A4 portrait at 14mm margins ~= 688px, matching the original frozen target.
+  assert.equal(a4Normal, 688);
+});
+
+test('printableWidthPx defaults unknown values to A4/normal', () => {
+  assert.equal(printableWidthPx('Foo', 'bar'), printableWidthPx('A4', 'normal'));
+});
+
+test('pageBoxCss maps paper size and margins to an @page rule', () => {
+  assert.equal(pageBoxCss('A4', 'normal'), '@page { size: a4; margin: 14mm; }');
+  assert.equal(
+    pageBoxCss('Letter', 'narrow'),
+    '@page { size: letter; margin: 6mm; }'
+  );
+  assert.equal(pageBoxCss('A4', 'none'), '@page { size: a4; margin: 0mm; }');
 });

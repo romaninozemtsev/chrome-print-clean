@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Print Clean",
   "version": "1.0.0",
-  "description": "Print pages from supported sites (Gmail, united.com, ...) with unnecessary elements removed.",
+  "description": "Clean up any web page and print it or save as PDF: remove clutter, highlight, hide images, set paper size — saved per site.",
   "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
   "action": {
     "default_title": "Print Clean — preview & print",

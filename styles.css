@@ -328,8 +328,23 @@ body.options {
   font-size: 0.9375rem;
   font-weight: 600;
 }
+.rule__meta {
+  margin-top: 4px;
+  font-size: 0.8125rem;
+  color: var(--ink-muted);
+}
+.rule__group {
+  margin-top: 10px;
+}
+.rule__group-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+}
 .rule__selectors {
-  margin: 8px 0 12px;
+  margin: 6px 0 12px;
   padding: 0;
   list-style: none;
   display: flex;

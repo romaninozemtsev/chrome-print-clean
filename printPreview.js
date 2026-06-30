@@ -71,11 +71,31 @@
   // ---- state --------------------------------------------------------------
 
   // `selectors` are hidden ("Remove" mode); `keepSelectors` isolate the page
-  // to only their subtrees ("Keep only" mode). The undo stack records both.
+  // to only their subtrees ("Keep only" mode); `highlightSelectors` mark
+  // elements so they stand out in the printout. The undo stack records all.
   const selectors = new Set();
   const keepSelectors = new Set();
+  const highlightSelectors = new Set();
   const undoStack = [];
   let mode = 'remove';
+
+  // Per-domain layout options, persisted in siteOptions[host].
+  const DEFAULT_OPTIONS = {
+    hideImages: false,
+    textScale: 1,
+    pageSize: 'A4',
+    margins: 'normal',
+  };
+  let options = { ...DEFAULT_OPTIONS };
+
+  function optionsAreDefault(o) {
+    return (
+      !o.hideImages &&
+      o.textScale === 1 &&
+      o.pageSize === 'A4' &&
+      o.margins === 'normal'
+    );
+  }
 
   function isolateCss(list) {
     const items = list.filter(Boolean);
@@ -85,17 +105,32 @@
   }
 
   function persist() {
-    chrome.storage.sync.get(['siteSelectors', 'siteKeep'], (data) => {
-      const hide = data.siteSelectors || {};
-      const keep = data.siteKeep || {};
-      const hl = Array.from(selectors);
-      const kl = Array.from(keepSelectors);
-      if (hl.length) hide[host] = hl;
-      else delete hide[host];
-      if (kl.length) keep[host] = kl;
-      else delete keep[host];
-      chrome.storage.sync.set({ siteSelectors: hide, siteKeep: keep });
-    });
+    chrome.storage.sync.get(
+      ['siteSelectors', 'siteKeep', 'siteHighlight', 'siteOptions'],
+      (data) => {
+        const hide = data.siteSelectors || {};
+        const keep = data.siteKeep || {};
+        const high = data.siteHighlight || {};
+        const opts = data.siteOptions || {};
+        const hl = Array.from(selectors);
+        const kl = Array.from(keepSelectors);
+        const gl = Array.from(highlightSelectors);
+        if (hl.length) hide[host] = hl;
+        else delete hide[host];
+        if (kl.length) keep[host] = kl;
+        else delete keep[host];
+        if (gl.length) high[host] = gl;
+        else delete high[host];
+        if (optionsAreDefault(options)) delete opts[host];
+        else opts[host] = { ...options };
+        chrome.storage.sync.set({
+          siteSelectors: hide,
+          siteKeep: keep,
+          siteHighlight: high,
+          siteOptions: opts,
+        });
+      }
+    );
   }
 
   function renderHideStyle() {
@@ -103,18 +138,24 @@
     css += Array.from(selectors)
       .map((s) => `${s}{display:none!important}`)
       .join('');
+    css += buildHighlightCss(Array.from(highlightSelectors));
+    if (options.hideImages) css += 'img{display:none!important}';
     hideStyle.textContent = css;
-    countEl.textContent = String(selectors.size + keepSelectors.size);
+    countEl.textContent = String(
+      selectors.size + keepSelectors.size + highlightSelectors.size
+    );
     renderList();
   }
 
-  function addHide(sel) {
+  function addHide(sel, quiet) {
     if (!sel || selectors.has(sel)) return;
+    // Removing wins over a prior highlight on the same node.
+    highlightSelectors.delete(sel);
     selectors.add(sel);
     undoStack.push({ kind: 'hide', sel });
     renderHideStyle();
     persist();
-    toast('Removed from print');
+    if (!quiet) toast('Removed from print');
   }
 
   function addKeep(sel) {
@@ -124,6 +165,15 @@
     renderHideStyle();
     persist();
     toast('Keeping only this');
+  }
+
+  function addHighlight(sel) {
+    if (!sel || highlightSelectors.has(sel)) return;
+    highlightSelectors.add(sel);
+    undoStack.push({ kind: 'highlight', sel });
+    renderHideStyle();
+    persist();
+    toast('Highlighted');
   }
 
   function pruneUndo(kind, sel) {
@@ -149,11 +199,19 @@
     persist();
   }
 
+  function restoreHighlight(sel) {
+    if (!highlightSelectors.delete(sel)) return;
+    pruneUndo('highlight', sel);
+    renderHideStyle();
+    persist();
+  }
+
   function undo() {
     const a = undoStack.pop();
     if (!a) return;
     if (a.kind === 'hide') selectors.delete(a.sel);
-    else keepSelectors.delete(a.sel);
+    else if (a.kind === 'keep') keepSelectors.delete(a.sel);
+    else if (a.kind === 'highlight') highlightSelectors.delete(a.sel);
     renderHideStyle();
     persist();
   }
@@ -161,6 +219,7 @@
   function reset() {
     selectors.clear();
     keepSelectors.clear();
+    highlightSelectors.clear();
     undoStack.length = 0;
     renderHideStyle();
     persist();
@@ -283,14 +342,88 @@
       .row button { font-size: 11.5px; padding: 5px 9px; background: oklch(1 0 0 / 0.08); }
       .row button:hover { background: oklch(1 0 0 / 0.16); }
 
+      /* Layout options popover */
+      .opts {
+        position: fixed; z-index: 2147483646; left: 50%; bottom: 84px;
+        transform: translateX(-50%);
+        width: 300px;
+        background: oklch(0.205 0.01 250); color: oklch(0.97 0 0);
+        border-radius: 12px; padding: 6px 14px;
+        box-shadow: 0 12px 32px oklch(0 0 0 / 0.34), 0 0 0 1px oklch(1 0 0 / 0.06);
+        display: none; animation: rise 200ms cubic-bezier(0.16,1,0.3,1) both;
+      }
+      .opts.open { display: block; }
+      .opts .grp {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 10px; padding: 10px 0;
+      }
+      .opts .grp + .grp { border-top: 1px solid oklch(1 0 0 / 0.08); }
+      .opts .lbl { font-size: 12.5px; font-weight: 550; }
+      .seg { display: inline-flex; background: oklch(1 0 0 / 0.07); border-radius: 8px; padding: 2px; gap: 2px; }
+      .seg button { padding: 5px 9px; font-size: 11.5px; border-radius: 6px; color: oklch(0.97 0 0 / 0.62); font-weight: 550; }
+      .seg button.on { background: oklch(1 0 0 / 0.16); color: oklch(0.97 0 0); }
+      .seg button:hover:not(.on) { background: oklch(1 0 0 / 0.06); }
+      .stepper { display: inline-flex; align-items: center; gap: 4px; }
+      .stepper button { padding: 4px 10px; background: oklch(1 0 0 / 0.08); border-radius: 6px; font-size: 13px; }
+      .stepper button:hover { background: oklch(1 0 0 / 0.16); }
+      .stepper button[disabled] { opacity: 0.35; cursor: default; }
+      .stepper button[disabled]:hover { background: oklch(1 0 0 / 0.08); }
+      .stepper .val { min-width: 44px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; }
+      .toggle {
+        width: 38px; height: 22px; border-radius: 999px; flex: 0 0 auto;
+        background: oklch(1 0 0 / 0.16); position: relative; cursor: pointer;
+        transition: background 140ms ease;
+      }
+      .toggle.on { background: oklch(0.62 0.17 25); }
+      .toggle::after {
+        content: ''; position: absolute; top: 2px; left: 2px;
+        width: 18px; height: 18px; border-radius: 50%; background: oklch(0.99 0 0);
+        transition: transform 140ms ease;
+      }
+      .toggle.on::after { transform: translateX(16px); }
+      .toggle:focus-visible { outline: 2px solid oklch(0.7 0.16 250); outline-offset: 2px; }
+      button.save { background: oklch(1 0 0 / 0.1); }
+      button.save:hover { background: oklch(1 0 0 / 0.18); }
+      .icon.on { background: oklch(1 0 0 / 0.16); }
+
       @media (prefers-reduced-motion: reduce) {
-        .bar, .toast, .panel, .hint { animation: none; transition: none; }
+        .bar, .toast, .panel, .opts, .hint { animation: none; transition: none; }
       }
     </style>
 
     <div class="hint" id="hint">Click anything to remove it from the printout</div>
 
     <div class="panel" id="panel"><div id="list"></div></div>
+
+    <div class="opts" id="opts">
+      <div class="grp">
+        <span class="lbl">Text size</span>
+        <span class="stepper">
+          <button id="textMinus" aria-label="Smaller text">A&minus;</button>
+          <span class="val" id="textVal">100%</span>
+          <button id="textPlus" aria-label="Larger text">A+</button>
+        </span>
+      </div>
+      <div class="grp">
+        <span class="lbl">Hide all images</span>
+        <span class="toggle" id="imgToggle" role="switch" aria-checked="false" tabindex="0" aria-label="Hide all images"></span>
+      </div>
+      <div class="grp">
+        <span class="lbl">Paper</span>
+        <span class="seg" id="paperSeg" role="group" aria-label="Paper size">
+          <button data-v="A4" class="on">A4</button>
+          <button data-v="Letter">Letter</button>
+        </span>
+      </div>
+      <div class="grp">
+        <span class="lbl">Margins</span>
+        <span class="seg" id="marginSeg" role="group" aria-label="Margins">
+          <button data-v="normal" class="on">Normal</button>
+          <button data-v="narrow">Narrow</button>
+          <button data-v="none">None</button>
+        </span>
+      </div>
+    </div>
 
     <div class="bar" role="toolbar" aria-label="Print preview controls">
       <span class="brand">
@@ -305,13 +438,19 @@
       <span class="mode" role="group" aria-label="Click action">
         <button id="m-remove" class="on" title="Click elements to drop them from the printout">Remove</button>
         <button id="m-keep" title="Click one section to keep only it — everything else is dropped">Keep only</button>
+        <button id="m-highlight" title="Click elements to highlight them in the printout">Highlight</button>
+        <button id="m-edit" title="Click text to edit it before printing">Edit</button>
       </span>
       <button class="count-btn icon" id="countBtn" title="Show changes" aria-label="Show changes">
         <span class="count"><b id="count">0</b> changes</span>
       </button>
+      <button class="icon" id="layoutBtn" title="Layout: text size, images, paper &amp; margins" aria-label="Layout options">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h11M4 12h7M4 18h13" stroke="oklch(0.97 0 0 / 0.85)" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="6" r="2.4" stroke="oklch(0.97 0 0 / 0.85)" stroke-width="2"/><circle cx="14" cy="12" r="2.4" stroke="oklch(0.97 0 0 / 0.85)" stroke-width="2"/><circle cx="20" cy="18" r="2.4" stroke="oklch(0.97 0 0 / 0.85)" stroke-width="2"/></svg>
+      </button>
       <span class="acts">
         <button class="ghost" id="undo" disabled>Undo</button>
         <button class="ghost" id="reset" disabled>Reset</button>
+        <button class="save" id="savepdf" title="Open the print dialog, then choose “Save as PDF”">Save PDF</button>
         <button class="print" id="print">Print</button>
         <button id="done">Done</button>
       </span>
@@ -374,7 +513,11 @@
       btn.textContent = 'Restore';
       btn.addEventListener('click', () => {
         onRestore(sel);
-        if (selectors.size === 0 && keepSelectors.size === 0)
+        if (
+          selectors.size === 0 &&
+          keepSelectors.size === 0 &&
+          highlightSelectors.size === 0
+        )
           panel.classList.remove('open');
       });
       row.append(code, btn);
@@ -387,7 +530,9 @@
     if (keepSelectors.size)
       addGroup('Kept sections', keepSelectors, restoreKeep);
     if (selectors.size) addGroup('Removed sections', selectors, restoreHide);
-    const total = selectors.size + keepSelectors.size;
+    if (highlightSelectors.size)
+      addGroup('Highlighted', highlightSelectors, restoreHighlight);
+    const total = selectors.size + keepSelectors.size + highlightSelectors.size;
     if (countLabel)
       countLabel.lastChild.textContent = total === 1 ? ' change' : ' changes';
     undoBtn.disabled = undoStack.length === 0;
@@ -422,13 +567,17 @@
     return el === shadowHost || (el && shadowHost.contains(el));
   }
 
+  function isPageRoot(el) {
+    return el === document.documentElement || el === document.body;
+  }
+
   function onMove(e) {
+    if (dragging) {
+      updateMarquee(e);
+      return;
+    }
     const el = e.target;
-    if (
-      withinUI(el) ||
-      el === document.documentElement ||
-      el === document.body
-    ) {
+    if (withinUI(el) || isPageRoot(el)) {
       highlight.style.display = 'none';
       hovered = null;
       return;
@@ -446,19 +595,170 @@
     highlight.style.height = r.height + 4 + 'px';
   }
 
+  // ---- inline text editing (Edit mode) ------------------------------------
+
+  const editedEls = new Set();
+
+  function makeEditable(el) {
+    if (!el || editedEls.has(el)) return;
+    el.setAttribute('contenteditable', 'true');
+    el.dataset.pcEdited = '1';
+    editedEls.add(el);
+  }
+
+  function clearEdits() {
+    editedEls.forEach((el) => {
+      el.removeAttribute('contenteditable');
+      delete el.dataset.pcEdited;
+    });
+    editedEls.clear();
+  }
+
+  // ---- marquee drag-to-remove (Remove mode only) --------------------------
+
+  const marquee = document.createElement('div');
+  Object.assign(marquee.style, {
+    position: 'fixed',
+    zIndex: '2147483641',
+    pointerEvents: 'none',
+    border: '1.5px dashed oklch(0.62 0.17 25)',
+    background: 'oklch(0.62 0.17 25 / 0.08)',
+    borderRadius: '3px',
+    display: 'none',
+  });
+  root.appendChild(marquee);
+
+  let pendingDrag = false;
+  let dragging = false;
+  let suppressClick = false;
+  let startX = 0;
+  let startY = 0;
+  const DRAG_THRESHOLD = 6;
+
+  function marqueeBox(e) {
+    return {
+      left: Math.min(startX, e.clientX),
+      top: Math.min(startY, e.clientY),
+      right: Math.max(startX, e.clientX),
+      bottom: Math.max(startY, e.clientY),
+    };
+  }
+
+  function updateMarquee(e) {
+    const b = marqueeBox(e);
+    marquee.style.display = 'block';
+    marquee.style.left = b.left + 'px';
+    marquee.style.top = b.top + 'px';
+    marquee.style.width = b.right - b.left + 'px';
+    marquee.style.height = b.bottom - b.top + 'px';
+    highlight.style.display = 'none';
+  }
+
+  function rectInside(r, b) {
+    return (
+      r.left >= b.left &&
+      r.top >= b.top &&
+      r.right <= b.right &&
+      r.bottom <= b.bottom
+    );
+  }
+
+  function rectIntersects(r, b) {
+    return (
+      r.left < b.right &&
+      r.right > b.left &&
+      r.top < b.bottom &&
+      r.bottom > b.top
+    );
+  }
+
+  // Collect the topmost elements fully enclosed by the marquee: descend only
+  // into branches that merely intersect, so we pick whole blocks, not slivers.
+  function collectInBox(el, box, out) {
+    for (const child of el.children) {
+      if (withinUI(child) || child === shadowHost) continue;
+      if (child.tagName === 'SCRIPT' || child.tagName === 'STYLE') continue;
+      const r = child.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (rectInside(r, box)) out.push(child);
+      else if (rectIntersects(r, box)) collectInBox(child, box, out);
+    }
+  }
+
+  function onMouseDown(e) {
+    if (withinUI(e.target) || mode !== 'remove') return;
+    if (e.button !== 0) return;
+    pendingDrag = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  }
+
+  function onMouseUp(e) {
+    if (!pendingDrag) return;
+    pendingDrag = false;
+    if (!dragging) return;
+    dragging = false;
+    suppressClick = true;
+    marquee.style.display = 'none';
+    const box = marqueeBox(e);
+    if (box.right - box.left < 8 || box.bottom - box.top < 8) return;
+    const found = [];
+    collectInBox(document.body, box, found);
+    let n = 0;
+    found.forEach((el) => {
+      const sel = selectorFor(el);
+      if (sel && !selectors.has(sel)) {
+        addHide(sel, true);
+        n++;
+      }
+    });
+    if (n) toast(`Removed ${n} ${n === 1 ? 'item' : 'items'}`);
+  }
+
   function onClick(e) {
     if (withinUI(e.target)) return;
+    if (suppressClick) {
+      suppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+
+    if (mode === 'edit') {
+      if (isPageRoot(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const el = e.target;
+      makeEditable(el);
+      const range =
+        document.caretRangeFromPoint &&
+        document.caretRangeFromPoint(e.clientX, e.clientY);
+      const selection = window.getSelection();
+      if (range && selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+      el.focus();
+      return;
+    }
+
     if (!hovered) return;
     e.preventDefault();
     e.stopPropagation();
     highlight.style.display = 'none';
     const sel = selectorFor(hovered);
     if (mode === 'keep') addKeep(sel);
+    else if (mode === 'highlight') addHighlight(sel);
     else addHide(sel);
     hovered = null;
   }
 
   function onKey(e) {
+    // Don't hijack typing while editing page text.
+    if (mode === 'edit' && e.target && e.target.isContentEditable) {
+      if (e.key === 'Escape') e.target.blur();
+      return;
+    }
     if (e.key === 'Escape') exit();
     else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
       e.preventDefault();
@@ -466,7 +766,21 @@
     }
   }
 
+  // Promote a pending press into a marquee drag once it moves far enough.
+  function onMouseMoveDrag(e) {
+    if (!pendingDrag || dragging) return;
+    if (
+      Math.abs(e.clientX - startX) > DRAG_THRESHOLD ||
+      Math.abs(e.clientY - startY) > DRAG_THRESHOLD
+    ) {
+      dragging = true;
+    }
+  }
+
+  document.addEventListener('mousedown', onMouseDown, true);
+  document.addEventListener('mousemove', onMouseMoveDrag, true);
   document.addEventListener('mousemove', onMove, true);
+  document.addEventListener('mouseup', onMouseUp, true);
   document.addEventListener('click', onClick, true);
   document.addEventListener('keydown', onKey, true);
 
@@ -476,48 +790,222 @@
   root.getElementById('reset').addEventListener('click', reset);
   root.getElementById('done').addEventListener('click', exit);
   countBtn.addEventListener('click', () => {
-    if (selectors.size || keepSelectors.size) panel.classList.toggle('open');
+    if (selectors.size || keepSelectors.size || highlightSelectors.size) {
+      const open = panel.classList.toggle('open');
+      if (open) {
+        optsPanel.classList.remove('open');
+        layoutBtn.classList.remove('on');
+      }
+    }
   });
   root.getElementById('settings').addEventListener('click', () => {
     chrome.runtime.sendMessage({ type: 'open-options' });
   });
 
-  // ---- mode toggle: Remove vs Keep only ------------------------------------
+  // ---- mode toggle: Remove / Keep only / Highlight / Edit ------------------
 
   const mRemove = root.getElementById('m-remove');
   const mKeep = root.getElementById('m-keep');
+  const mHighlight = root.getElementById('m-highlight');
+  const mEdit = root.getElementById('m-edit');
+  const MODE_BTNS = {
+    remove: mRemove,
+    keep: mKeep,
+    highlight: mHighlight,
+    edit: mEdit,
+  };
+  const MODE_HINTS = {
+    remove: 'Click anything to remove it — or drag to remove several at once',
+    keep: 'Click a section to keep only it — everything else is dropped',
+    highlight: 'Click anything to highlight it in the printout',
+    edit: 'Click text to edit it, then type. Press Esc to finish a field.',
+  };
+  const MODE_COLOR = {
+    remove: ['oklch(0.62 0.17 25)', 'oklch(0.62 0.17 25 / 0.12)'],
+    keep: ['oklch(0.58 0.14 155)', 'oklch(0.58 0.14 155 / 0.16)'],
+    highlight: ['oklch(0.82 0.17 95)', 'oklch(0.82 0.17 95 / 0.22)'],
+    edit: ['oklch(0.62 0.16 250)', 'oklch(0.62 0.16 250 / 0.14)'],
+  };
   function setMode(next) {
     mode = next;
-    const keep = next === 'keep';
-    mRemove.classList.toggle('on', !keep);
-    mKeep.classList.toggle('on', keep);
-    highlight.style.borderColor = keep
-      ? 'oklch(0.58 0.14 155)'
-      : 'oklch(0.62 0.17 25)';
-    highlight.style.background = keep
-      ? 'oklch(0.58 0.14 155 / 0.16)'
-      : 'oklch(0.62 0.17 25 / 0.12)';
-    showHint(
-      keep
-        ? 'Click a section to keep only it — everything else is dropped'
-        : 'Click anything to remove it from the printout'
+    Object.entries(MODE_BTNS).forEach(([k, btn]) =>
+      btn.classList.toggle('on', k === next)
     );
+    const [border, bg] = MODE_COLOR[next] || MODE_COLOR.remove;
+    highlight.style.borderColor = border;
+    highlight.style.background = bg;
+    showHint(MODE_HINTS[next]);
   }
-  mRemove.addEventListener('click', () => setMode('remove'));
-  mKeep.addEventListener('click', () => setMode('keep'));
-  showHint('Click anything to remove it from the printout');
+  Object.entries(MODE_BTNS).forEach(([k, btn]) =>
+    btn.addEventListener('click', () => setMode(k))
+  );
+  showHint(MODE_HINTS.remove);
 
-  root.getElementById('print').addEventListener('click', () => {
+  // ---- layout options popover (text size, images, paper, margins) ---------
+
+  const optsPanel = root.getElementById('opts');
+  const layoutBtn = root.getElementById('layoutBtn');
+  const imgToggle = root.getElementById('imgToggle');
+  const paperSeg = root.getElementById('paperSeg');
+  const marginSeg = root.getElementById('marginSeg');
+  const textVal = root.getElementById('textVal');
+  const textMinusBtn = root.getElementById('textMinus');
+  const textPlusBtn = root.getElementById('textPlus');
+
+  const TEXT_MIN = 0.8;
+  const TEXT_MAX = 1.6;
+  const TEXT_STEP = 0.1;
+  const TEXT_SKIP = new Set([
+    'SCRIPT',
+    'STYLE',
+    'NOSCRIPT',
+    'TEMPLATE',
+    'TEXTAREA',
+    'svg',
+  ]);
+
+  // Per-element original sizes, so text scaling is reversible and flows into
+  // the print snapshot (which reads each node's computed font-size).
+  const textBase = new Map();
+
+  function eligibleTextEls() {
+    const out = [];
+    if (!document.body) return out;
+    document.body.querySelectorAll('*').forEach((el) => {
+      if (withinUI(el) || TEXT_SKIP.has(el.tagName)) return;
+      for (const node of el.childNodes) {
+        if (node.nodeType === 3 && node.nodeValue && node.nodeValue.trim()) {
+          out.push(el);
+          break;
+        }
+      }
+    });
+    return out;
+  }
+
+  function restoreTextSizing() {
+    textBase.forEach((b, el) => {
+      el.style.fontSize = b.prevFs;
+      el.style.lineHeight = b.prevLh;
+    });
+    textBase.clear();
+  }
+
+  function applyTextScale(scale) {
+    options.textScale = scale;
+    if (scale === 1) {
+      restoreTextSizing();
+      return;
+    }
+    eligibleTextEls().forEach((el) => {
+      let b = textBase.get(el);
+      if (!b) {
+        const cs = getComputedStyle(el);
+        const fs = parseFloat(cs.fontSize);
+        const lh = /^[\d.]+px$/.test(cs.lineHeight)
+          ? parseFloat(cs.lineHeight)
+          : null;
+        b = { fs, lh, prevFs: el.style.fontSize, prevLh: el.style.lineHeight };
+        textBase.set(el, b);
+      }
+      if (b.fs) el.style.fontSize = (b.fs * scale).toFixed(2) + 'px';
+      if (b.lh) el.style.lineHeight = (b.lh * scale).toFixed(2) + 'px';
+    });
+  }
+
+  function updateTextUI() {
+    textVal.textContent = Math.round(options.textScale * 100) + '%';
+    textMinusBtn.disabled = options.textScale <= TEXT_MIN + 1e-9;
+    textPlusBtn.disabled = options.textScale >= TEXT_MAX - 1e-9;
+  }
+
+  function setTextScale(scale) {
+    scale = Math.round(scale * 10) / 10;
+    scale = Math.min(TEXT_MAX, Math.max(TEXT_MIN, scale));
+    applyTextScale(scale);
+    updateTextUI();
+    persist();
+  }
+
+  function setImages(hide) {
+    options.hideImages = hide;
+    imgToggle.classList.toggle('on', hide);
+    imgToggle.setAttribute('aria-checked', String(hide));
+    renderHideStyle();
+    persist();
+  }
+
+  function wireSeg(seg, key) {
+    seg.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      options[key] = btn.dataset.v;
+      Array.from(seg.children).forEach((b) =>
+        b.classList.toggle('on', b === btn)
+      );
+      persist();
+    });
+  }
+
+  function syncOptionsUI() {
+    imgToggle.classList.toggle('on', options.hideImages);
+    imgToggle.setAttribute('aria-checked', String(options.hideImages));
+    Array.from(paperSeg.children).forEach((b) =>
+      b.classList.toggle('on', b.dataset.v === options.pageSize)
+    );
+    Array.from(marginSeg.children).forEach((b) =>
+      b.classList.toggle('on', b.dataset.v === options.margins)
+    );
+    updateTextUI();
+  }
+
+  layoutBtn.addEventListener('click', () => {
+    const open = optsPanel.classList.toggle('open');
+    layoutBtn.classList.toggle('on', open);
+    if (open) panel.classList.remove('open');
+  });
+  imgToggle.addEventListener('click', () => setImages(!options.hideImages));
+  imgToggle.addEventListener('keydown', (e) => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      setImages(!options.hideImages);
+    }
+  });
+  wireSeg(paperSeg, 'pageSize');
+  wireSeg(marginSeg, 'margins');
+  textMinusBtn.addEventListener('click', () =>
+    setTextScale(options.textScale - TEXT_STEP)
+  );
+  textPlusBtn.addEventListener('click', () =>
+    setTextScale(options.textScale + TEXT_STEP)
+  );
+
+  function closePopovers() {
     highlight.style.display = 'none';
     hideToast();
     panel.classList.remove('open');
+    optsPanel.classList.remove('open');
+    layoutBtn.classList.remove('on');
+  }
+
+  root.getElementById('print').addEventListener('click', () => {
+    closePopovers();
+    printExact();
+  });
+  root.getElementById('savepdf').addEventListener('click', () => {
+    closePopovers();
     printExact();
   });
 
   function exit() {
+    document.removeEventListener('mousedown', onMouseDown, true);
+    document.removeEventListener('mousemove', onMouseMoveDrag, true);
     document.removeEventListener('mousemove', onMove, true);
+    document.removeEventListener('mouseup', onMouseUp, true);
     document.removeEventListener('click', onClick, true);
     document.removeEventListener('keydown', onKey, true);
+    clearEdits();
+    restoreTextSizing();
     hideStyle.remove();
     printGuard.remove();
     shadowHost.remove();
@@ -676,6 +1164,19 @@
     if (cs.position === 'fixed' || cs.position === 'sticky') {
       css += 'position:static;';
     }
+    // Release vertical scroll/clip containers (e.g. Gmail's email body) so
+    // their full content flows onto the page instead of being cut off at the
+    // scroll viewport. We pin each node's computed px height for layout, which
+    // would otherwise clamp a scroller to only its visible slice; here we let
+    // it grow. Both axes go visible because a single non-visible axis forces
+    // the other back to auto (re-clipping).
+    const CLIP = ['auto', 'scroll', 'hidden', 'clip'];
+    if (CLIP.includes(cs.overflowY)) {
+      css +=
+        'overflow:visible !important;height:auto !important;max-height:none !important;';
+    } else if (CLIP.includes(cs.overflowX)) {
+      css += 'overflow:visible !important;';
+    }
     clone.setAttribute('style', css);
 
     if (src.tagName === 'IMG') {
@@ -695,12 +1196,11 @@
 
   function printExact() {
     const vw = document.documentElement.clientWidth;
-    // Lock the snapshot to the on-screen width and scale it down to fit a
-    // portrait page, so the layout is frozen exactly as previewed. Changing
-    // the paper orientation then only changes the surrounding whitespace
-    // instead of reflowing the content. 688px ≈ A4 portrait printable width
-    // at 14mm margins (210mm − 28mm); we only ever scale down, never up.
-    const TARGET = 688;
+    // Lock the snapshot to the on-screen width and scale it down to fit the
+    // chosen page, so the layout is frozen exactly as previewed. Changing the
+    // paper size or margins then only changes the surrounding whitespace
+    // instead of reflowing the content. We only ever scale down, never up.
+    const TARGET = printableWidthPx(options.pageSize, options.margins);
     const scale = Math.min(1, TARGET / vw);
     const bodyClone = buildSnapshot(document.body);
 
@@ -713,8 +1213,9 @@
     idoc.open();
     idoc.write(
       `<!doctype html><html><head><meta charset="utf-8">` +
+        `<title>${(document.title || 'Print Clean').replace(/</g, '&lt;')}</title>` +
         `<base href="${location.href.replace(/"/g, '&quot;')}">` +
-        `<style>@page{margin:14mm}` +
+        `<style>${pageBoxCss(options.pageSize, options.margins)}` +
         `*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}` +
         `html,body{margin:0;padding:0;background:#fff}` +
         `img{max-width:100%}</style></head><body></body></html>`
@@ -759,9 +1260,20 @@
 
   // ---- load existing rules for this host -----------------------------------
 
-  chrome.storage.sync.get(['siteSelectors', 'siteKeep'], (data) => {
-    ((data.siteSelectors || {})[host] || []).forEach((s) => selectors.add(s));
-    ((data.siteKeep || {})[host] || []).forEach((s) => keepSelectors.add(s));
-    renderHideStyle();
-  });
+  chrome.storage.sync.get(
+    ['siteSelectors', 'siteKeep', 'siteHighlight', 'siteOptions'],
+    (data) => {
+      ((data.siteSelectors || {})[host] || []).forEach((s) => selectors.add(s));
+      ((data.siteKeep || {})[host] || []).forEach((s) => keepSelectors.add(s));
+      ((data.siteHighlight || {})[host] || []).forEach((s) =>
+        highlightSelectors.add(s)
+      );
+      const saved = (data.siteOptions || {})[host];
+      if (saved) Object.assign(options, saved);
+      renderHideStyle();
+      renderList();
+      syncOptionsUI();
+      if (options.textScale !== 1) applyTextScale(options.textScale);
+    }
+  );
 })();
